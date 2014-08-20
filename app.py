@@ -44,4 +44,7 @@ def get_posts(topic_id):
 
 
 if __name__ == '__main__':
-	app.run()
+	import os
+	port = os.environ.get('PORT', 5000)
+
+	app.run('0.0.0.0', port)
