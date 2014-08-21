@@ -10,130 +10,133 @@ def chunks(lst, n):
         yield lst[i:i+n]
 
 class NlService(object):
-	"""A class for crawling Nairaland forum"""
+    """A class for crawling Nairaland forum"""
 
-	BASE_URI = 'http://www.nairaland.com'
-	SLEEP_SECONDS = 60 # i.e. 1 minute
-	_last_requested_uri = None
-	_last_request_time = 0
-	_cached_result = None
+    BASE_URI = 'http://www.nairaland.com'
+    SLEEP_SECONDS = 60 # i.e. 1 minute
+    _last_requested_uri = None
+    _last_request_time = 0
+    _cached_result = None
 
-	def __init__(self):
-		super(NlService, self).__init__()
+    def __init__(self):
+        super(NlService, self).__init__()
 
-	def get_html(self, uri):
-		uri = self.absolute_uri(uri)
-		same_uri = self._last_requested_uri == uri
-		too_many_requests = time.time() - self._last_request_time < self.SLEEP_SECONDS
+    def get_html(self, uri):
+        uri = self.absolute_uri(uri)
+        same_uri = self._last_requested_uri == uri
+        too_many_requests = time.time() - self._last_request_time < self.SLEEP_SECONDS
 
-		if too_many_requests and same_uri:
-			return self._cached_result
+        if too_many_requests and same_uri:
+            return self._cached_result
 
-		try:
-			self._cached_result = requests.get(uri).text
-			self._last_request_time = time.time()
-			self._last_requested_uri = uri
-		except Exception as e:
-			return '<doctype html><html><head><title>(Empty)</title></head><body></body></html>'
+        try:
+            self._cached_result = requests.get(uri).text
+            self._last_request_time = time.time()
+            self._last_requested_uri = uri
+        except Exception as e:
+            return '<doctype html><html><head><title>(Empty)</title></head><body></body></html>'
 
-		return self._cached_result
+        return self._cached_result
 
-	def absolute_uri(self, uri):
-		if uri.startswith('/'):
-			return ''.join([self.BASE_URI, uri])
+    def absolute_uri(self, uri):
+        if uri.startswith('/'):
+            return ''.join([self.BASE_URI, uri])
 
-		if not uri.startswith(self.BASE_URI):
-			return ''.join([self.BASE_URI, '/', uri])
+        if not uri.startswith(self.BASE_URI):
+            return ''.join([self.BASE_URI, '/', uri])
 
-		return uri
+        return uri
 
-	def get_id_from_uri(self, uri):
-		uri = uri.replace(self.BASE_URI, '')
-		if uri.startswith('/'):
-			uri = uri[1:]
+    def get_id_from_uri(self, uri):
+        uri = uri.replace(self.BASE_URI, '')
+        if uri.startswith('/'):
+            uri = uri[1:]
 
-		id_ = uri.split('/')[0]
-		return id_ if re.compile('^\d+$').search(id_) else None
+        id_ = uri.split('/')[0]
+        return id_ if re.compile('^\d+$').search(id_) else None
 
-	def strip_leading_slash(self, uri):
-		if uri.startswith('/'):
-			return uri[1:]
+    def strip_leading_slash(self, uri):
+        if uri.startswith('/'):
+            return uri[1:]
 
-		return uri
-		
-	def get_boards(self):
-		soup = BeautifulSoup(self.get_html(self.BASE_URI))
-		boards = []
+        return uri
 
-		table = soup.find('table', class_='boards')
-		if table:
-			for row in table.find_all('td'):
-				for index, tag in enumerate(row.find_all('a'), start=1):
-					uri = self.strip_leading_slash(tag['href'])
-					board = dict(id=index, name=tag.text, title=tag['title'], uri=uri)
-					boards.append(board)
+    def get_forums(self):
+        soup = BeautifulSoup(self.get_html(self.BASE_URI))
+        boards = []
 
-		regex = re.compile('class=g')
-		boards = [board for board in boards if not regex.search(board['title'])]
+        table = soup.find('table', class_='boards')
+        if table:
+            for row in table.find_all('td'):
+                for index, tag in enumerate(row.find_all('a'), start=1):
+                    uri = self.strip_leading_slash(tag['href'])
+                    board = dict(id=index, name=tag.text, title=tag['title'], uri=uri)
+                    boards.append(board)
 
-		return json.dumps(boards)
+        regex = re.compile('class=g')
+        boards = [board for board in boards if not regex.search(board['title'])]
 
-	def get_featured(self):
-		soup = BeautifulSoup(self.get_html(self.BASE_URI))
-		topics = []
+        return json.dumps(boards, indent=2, ensure_ascii=False)
 
-		container = soup.select('td.featured')[0]
-		for link in container.find_all('a'):
-			href = link['href']
-			id_=self.get_id_from_uri(href)
-			uri=self.absolute_uri(href)
+    def get_featured_topics(self):
+        soup = BeautifulSoup(self.get_html(self.BASE_URI))
+        topics = []
 
-			topics.append(dict(id=id_, title=link.text, uri=uri))
+        container = soup.select('td.featured')[0]
+        for link in container.find_all('a'):
+            href = link['href']
+            id_=self.get_id_from_uri(href)
+            uri=self.absolute_uri(href)
 
-		topics = [topic for topic in topics if topic['id']]
+            topics.append(dict(id=id_, title=link.text, uri=uri))
 
-		return json.dumps(topics)
+        topics = [topic for topic in topics if topic['id']]
 
-	def get_topics(self, uri):
-		soup = BeautifulSoup(self.get_html(uri))
-		topics = []
+        return json.dumps(topics, indent=2, ensure_ascii=False)
 
-		for row in soup.find_all('td', id=re.compile('top\d+')):
-			try:
-				link = row.find('a', href=re.compile('^/\d+/\w+'))
-				data = self.parse_topic_data([b.text for b in row.find('span', class_='s').find_all('b')])
+    def get_forum_topics(self, uri):
+        soup = BeautifulSoup(self.get_html(uri))
+        topics = []
 
-				author, posts, views, create_at, last_comment_by = data
-				topic = dict(
-					id=self.get_id_from_uri(link['href']),
-					title=link.text, uri=self.absolute_uri(link['href']),
-					author=author, posts=posts, views=views, created_at=create_at,
-					last_comment_by=last_comment_by)
+        for row in soup.find_all('td', id=re.compile('top\d+')):
+            try:
+                link = row.find('a', href=re.compile('^/\d+/\w+'))
+                data = self.parse_topic_data([b.text for b in row.find('span', class_='s').find_all('b')])
 
-				topics.append(topic)
-			except Exception as e:
-				continue
+                author, posts, views, create_at, last_comment_by = data
+                topic = dict(
+                    id=self.get_id_from_uri(link['href']),
+                    title=link.text, uri=self.absolute_uri(link['href']),
+                    author=author, posts=posts, views=views, created_at=create_at,
+                    last_comment_by=last_comment_by)
 
-		return json.dumps(topics)
+                topics.append(topic)
+            except Exception as e:
+                continue
 
-	def get_posts(self, uri):
-		soup = BeautifulSoup(self.get_html(uri))
-		posts = []
+        return json.dumps(topics, indent=2, ensure_ascii=False)
 
-		table = soup.find('table', summary='posts')
-		tags = list(chunks(table.find_all('td'), 2))
-		for chunk in tags:
-			if len(chunk) != 2:
-				continue
+    def get_topic_comments(self, uri):
+        #soup = BeautifulSoup(self.get_html(uri))
+        #posts = []
 
-			post = {}
+        #table = soup.find('table', summary='posts')
+        #tags = list(chunks(table.find_all('td'), 2))
+        #for chunk in tags:
+        #   if len(chunk) != 2:
+        #       continue
 
-	def parse_topic_data(self, lst):
-		if len(lst)==5: return lst
+        #   post = {}
+        return json.dumps({
+            'status': 'Not Implemented.'
+        }, indent=2, ensure_ascii=False)
 
-		if len(lst)==6:
-			author, posts, views, c_time, c_date, last_comment = lst
-			return author, posts, views, '%s at %s' % (c_date, c_time), last_comment
+    def parse_topic_data(self, lst):
+        if len(lst)==5: return lst
 
-		author, posts, views, c_time, c_date, c_year, last_comment = lst
-		return author, posts, views, '%s, %s at %s' % (c_date, c_year, c_time), last_comment
+        if len(lst)==6:
+            author, posts, views, c_time, c_date, last_comment = lst
+            return author, posts, views, '%s at %s' % (c_date, c_time), last_comment
+
+        author, posts, views, c_time, c_date, c_year, last_comment = lst
+        return author, posts, views, '%s, %s at %s' % (c_date, c_year, c_time), last_comment
