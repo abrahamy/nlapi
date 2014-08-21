@@ -60,11 +60,11 @@ def get_featured_topics():
 	return Response(res, mimetype='application/json')
 
 
-@app.route('/forums/<forum>', methods=['GET'])
-def get_forum_topics(forum):
+@app.route('/forums/<uri>', methods=['GET'])
+def get_forum(uri):
 	global service
 
-	res = service.get_forum_topics(forum)
+	res = service.get_forum(uri)
 	return Response(res, mimetype='application/json')
 
 

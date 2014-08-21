@@ -63,20 +63,20 @@ class NlService(object):
 
     def get_forums(self):
         soup = BeautifulSoup(self.get_html(self.BASE_URI))
-        boards = []
+        forums = []
 
         table = soup.find('table', class_='boards')
         if table:
             for row in table.find_all('td'):
                 for index, tag in enumerate(row.find_all('a'), start=1):
                     uri = self.strip_leading_slash(tag['href'])
-                    board = dict(id=index, name=tag.text, title=tag['title'], uri=uri)
-                    boards.append(board)
+                    forum = dict(id=index, name=tag.text, title=tag['title'], uri=uri)
+                    forums.append(forum)
 
         regex = re.compile('class=g')
-        boards = [board for board in boards if not regex.search(board['title'])]
+        forums = [forum for forum in forums if not regex.search(forum['title'])]
 
-        return json.dumps(boards, indent=2, ensure_ascii=False)
+        return json.dumps(forums, indent=2, ensure_ascii=False)
 
     def get_featured_topics(self):
         soup = BeautifulSoup(self.get_html(self.BASE_URI))
@@ -94,9 +94,13 @@ class NlService(object):
 
         return json.dumps(topics, indent=2, ensure_ascii=False)
 
-    def get_forum_topics(self, uri):
+    def get_forum(self, uri):
         soup = BeautifulSoup(self.get_html(uri))
-        topics = []
+        forum = {
+            'title': uri.capitalize(),
+            'uri': uri,
+            'topics': []
+        }
 
         for row in soup.find_all('td', id=re.compile('top\d+')):
             try:
@@ -110,11 +114,11 @@ class NlService(object):
                     author=author, posts=posts, views=views, created_at=create_at,
                     last_comment_by=last_comment_by)
 
-                topics.append(topic)
+                forum['topics'].append(topic)
             except Exception as e:
                 continue
 
-        return json.dumps(topics, indent=2, ensure_ascii=False)
+        return json.dumps(forum, indent=2, ensure_ascii=False)
 
     def get_topic_comments(self, uri):
         #soup = BeautifulSoup(self.get_html(uri))
@@ -127,6 +131,7 @@ class NlService(object):
         #       continue
 
         #   post = {}
+        # return something like {title: ..., author: ..., created_at: ..., comments: [...]}
         return json.dumps({
             'status': 'Not Implemented.'
         }, indent=2, ensure_ascii=False)
