@@ -120,7 +120,7 @@ class NlService(object):
 
         return json.dumps(forum, indent=2, ensure_ascii=False)
 
-    def get_topic_comments(self, uri):
+    def get_topic(self, uri):
         #soup = BeautifulSoup(self.get_html(uri))
         #posts = []
 

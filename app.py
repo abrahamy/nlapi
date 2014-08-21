@@ -69,10 +69,10 @@ def get_forum(uri):
 
 
 @app.route('/forums/<forum>/<int:topic>', methods=['GET'])
-def get_topic_comments(forum, topic):
+def get_topic(forum, topic):
 	global service
 
-	res = service.get_topic_comments('%d' % topic)
+	res = service.get_topic('%d' % topic)
 	return Response(res, mimetype='application/json')
 
 
