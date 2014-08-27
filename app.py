@@ -78,7 +78,7 @@ def request_handler(action):
 
 if __name__ == '__main__':
 	import os
-	port = os.environ.get('PORT', None)
-	debug = True if port else False
+	port = os.environ.get('PORT', 5000)
+	debug = True if port == 5000 else False
 
-	app.run(host='0.0.0.0', port=port or 5000, debug=debug)
+	app.run(port=port, debug=debug)
