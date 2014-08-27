@@ -1,10 +1,13 @@
-from flask import Flask, Response
+from flask import Flask, Response, request, abort
 from nlservice import NlService
 import json
 
 
 app = Flask(__name__)
 service = NlService()
+CORS_HEADERS = {
+	'Access-Control-Allow-Origin': '*',
+}
 
 
 @app.route('/', methods=['GET'])
@@ -14,71 +17,71 @@ def index():
 			{
 				'uri': '/',
 				'methods': ['get'],
-				'description': 'Get list of all api resources.'
+				'description': 'Get this api specification.'
 			},
 			{
-				'uri': '/featured',
+				'uri': '/api/getFeaturedTopics',
 				'methods': ['get'],
 				'description': 'Get featured topics listed on nairaland.com\'s front page.'
 			},
 			{
-				'uri': '/forums',
+				'uri': '/api/listForums',
 				'methods': ['get'],
 				'description': 'Get list of forums on nairaland.com.'
 			},
 			{
-				'uri': '/forums/:forum',
+				'uri': '/api/getForum?forum-id=:id',
 				'methods': ['get'],
-				'description': 'Get topics for forum named :forum.'
+				'description': 'Get topics for forum with the id :id.'
 			},
 			{
-				'uri': '/forums/:forum/:topic',
+				'uri': '/api/getTopic?topic-id=:id',
 				'methods': ['get'],
-				'description': 'Get all comments for the topic with id :topic and belonging to forum named :forum.'
+				'description': 'Get topic with all comments for the given topic id (:id)'
 			}
 		]
 	}
 
-	data = json.dumps(urls, indent=2)
+	data = json.dumps(urls, indent=2, ensure_ascii=False)
+	response = Response(data, mimetype='application/json')
+	response.headers['Access-Control-Allow-Origin'] = '*'
 
-	return Response(data, mimetype='application/json')
+	return response
 
 
-@app.route('/forums', methods=['GET'])
-def get_forums():
+@app.route('/api/<action>', methods=['GET'])
+def request_handler(action):
 	global service
+	action = action.lower()
 
-	res = service.get_forums()
-	return Response(res, mimetype='application/json')
+	if action == 'listforums':
+		data = service.get_forums()
+	elif action == 'getfeaturedtopics':
+		data = service.get_featured_topics()
+	elif action == 'getforum':
+		forum_id = request.args.get('forum-id', None)
+		if not forum_id:
+			abort(400)
+		data = service.get_forum(forum_id)
+	elif action == 'gettopic':
+		topic_id = request.args.get('topic-id', None)
+		try:
+			topic_id = int(topic_id)
+		except (TypeError, ValueError) as e:
+			abort(400)
+		data = service.get_topic('%d' % topic_id)
+	else:
+		abort(404)
 
+	response = Response(data, mimetype='application/json')
+	response.headers['Access-Control-Allow-Origin'] = '*'
 
-@app.route('/featured', methods=['GET'])
-def get_featured_topics():
-	global service
-
-	res = service.get_featured_topics()
-	return Response(res, mimetype='application/json')
-
-
-@app.route('/forums/<uri>', methods=['GET'])
-def get_forum(uri):
-	global service
-
-	res = service.get_forum(uri)
-	return Response(res, mimetype='application/json')
-
-
-@app.route('/forums/<forum>/<int:topic>', methods=['GET'])
-def get_topic(forum, topic):
-	global service
-
-	res = service.get_topic('%d' % topic)
-	return Response(res, mimetype='application/json')
+	return response
 
 
 if __name__ == '__main__':
 	import os
-	port = os.environ.get('PORT', 5000)
-	debug = True if port == 5000 else False
+	port = os.environ.get('PORT', None)
+	debug = True if port else False
 
 	app.run(host='0.0.0.0', port=port, debug=debug)
