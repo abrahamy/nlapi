@@ -5,9 +5,6 @@ import json
 
 app = Flask(__name__)
 service = NlService()
-CORS_HEADERS = {
-	'Access-Control-Allow-Origin': '*',
-}
 
 
 @app.route('/', methods=['GET'])
