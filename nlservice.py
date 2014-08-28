@@ -158,7 +158,7 @@ class NlService(object):
            },
            'body': body,
            'likes': likes,
-           'create_at': created_at
+           'created_at': created_at
           }
 
           topic['comments'].append(comment)
