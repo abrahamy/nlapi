@@ -17,6 +17,11 @@ def index():
 				'description': 'Get this api specification.'
 			},
 			{
+				'uri': '/download',
+				'methods': ['get'],
+				'description': 'Download a snapshot build of the android apk'
+			},
+			{
 				'uri': '/api/getFeaturedTopics',
 				'methods': ['get'],
 				'description': 'Get featured topics listed on nairaland.com\'s front page.'
@@ -73,6 +78,24 @@ def request_handler(action):
 	response = Response(data, mimetype='application/json')
 	response.headers['Access-Control-Allow-Origin'] = '*'
 
+	return response
+
+
+@app.route('/download', methods=['GET'])
+def download():
+	data = None
+	with open('nairalandreader-debug.apk', 'rb') as f:
+		data = f.read()
+
+	response = Response(data)
+	response.headers.extend({
+		'Cache-Control': 'must-revalidate, post-check=0, pre-check=0',
+    'Content-Description': 'File Transfer',
+		'Content-Type': 'application/vnd.android.package-archive',
+		'Content-Disposition': 'attachment; filename=nairalandreader-debug.apk',
+		'Expires': '0',
+		'Pragma': 'public'
+	})
 	return response
 
 
