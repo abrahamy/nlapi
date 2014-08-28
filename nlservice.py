@@ -6,7 +6,7 @@ import time
 
 def chunks(lst, n):
     """ Yield successive n-sized chunks from lst """
-    for i in xrange(0, len(lst), n):
+    for i in range(0, len(lst), n):
         yield lst[i:i+n]
 
 class NlService(object):
@@ -121,20 +121,49 @@ class NlService(object):
         return json.dumps(forum, indent=2, ensure_ascii=False)
 
     def get_topic(self, uri):
-        #soup = BeautifulSoup(self.get_html(uri))
-        #posts = []
+        soup = BeautifulSoup(self.get_html(uri))
+        topic = {
+          'title': soup.title.text.split('-')[0].strip(),
+          'comments': []
+        }
 
-        #table = soup.find('table', summary='posts')
-        #tags = list(chunks(table.find_all('td'), 2))
-        #for chunk in tags:
-        #   if len(chunk) != 2:
-        #       continue
+        message_ids = filter(
+          lambda item: item is not None,
+          map(
+            lambda tag: tag.get('name', None),
+            soup.find_all('a', attrs={'name': re.compile('^msg\d+$')})
+          )
+        )
+        message_ids = [i.replace('msg', '') for i in message_ids]
 
-        #   post = {}
-        # return something like {title: ..., author: ..., created_at: ..., comments: [...]}
-        return json.dumps({
-            'status': 'Not Implemented.'
-        }, indent=2, ensure_ascii=False)
+        for m_id in message_ids:
+          header = soup.find('a', attrs={'name': 'msg%s' % m_id}).parent
+          body_tag = soup.find(id='pb%s' % m_id)
+          body = body_tag.find('div', class_='narrow').text
+
+          likes_tag = body_tag.find(id='lpt%s' % m_id)
+          likes = likes_tag.text.replace('Likes', '').replace('Like', '').strip() if likes_tag else '0'
+
+          user_tag = header.find('a', class_='user')
+          username = user_tag.text
+          location = user_tag.get('title', 'n/a').replace('Location: ', '')
+          gender = 'M' if header.find('span', class_='m') else 'F'
+          created_at = header.find('span', class_='s').text
+
+          comment = {
+           'author': {
+             'username': username,
+             'gender': gender,
+             'location': location
+           },
+           'body': body,
+           'likes': likes,
+           'create_at': created_at
+          }
+
+          topic['comments'].append(comment)
+
+        return json.dumps(topic, indent=2, ensure_ascii=False, sort_keys=True)
 
     def parse_topic_data(self, lst):
         if len(lst)==5: return lst
